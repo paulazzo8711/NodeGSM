@@ -30,51 +30,8 @@ module.exports = class Parser {
     if (dbm >= -85) {
       return "Good";
     }
-
-    // Example input:
-    // +CMGL: 0,"REC UNREAD","002B003100310031003200320032003300330033003400340034",,"19/07/07,20:40:54+08",145,15
-    // 00480065006C006C006F00200057006F0072006C006400210020D83CDF0D
-    parseTextMessageResult(result) {
-        const list = result.split("\r\n")
-        let messages = []
-        for (let i = 0; i < list.length; i += 2) {
-            try{
-            const parts = list[i].replace("+CMGL: ","").split(",")
-            
-            const index = parseInt(parts[0])
-            const status = parts[1].trimQuotes()
-            const sender = parts[2].trimQuotes().decodedUCS2Hex()
-            const date = parts[4].trimQuotes().replace(/\//g,"-")
-            const time = parts[5].trimQuotes()
-            const numberType = parseInt(parts[6])
-            const textLength = parseInt(parts[7])
-            const messageText = list[i+1]
-
-            // Message Text decode. Can be either UTF-8 or UCS2. We check this by the char byte size
-            const textBuffer = Buffer.from(messageText,"hex")
-            const textCharSize = textBuffer.length / textLength
-            const decodedText = textCharSize == 2 ? messageText.decodedUCS2Hex() : textBuffer.toString("utf-8")
-            
-            //Time calculate
-            const timeParts = time.split("+")
-            const timezone = parseFloat(timeParts[1])/4.0 * 100
-            const timezonePrefix =  timezone > 0 ? "+" : "-"
-            const timezoneString = timezonePrefix + Math.abs(timezone).toString().padStart(4,"0")
-            const timeStamp = `20${date}T${timeParts[0]}${timezoneString}`
-            const senderString =  [PhoneNumberType.text, PhoneNumberType.text2].includes(numberType) ? sender.decodedFromAsciiString() : sender
-            messages.push({
-                index: index,
-                status: status,
-                sender: senderString,
-                time: new Date(timeStamp),
-                text: decodedText,
-                numberType: numberType,
-                rawHeader: list[i],
-                rawMessage: messageText,
-            })
-        }catch{return (result,error)}
-        }
-        return messages
+    if (dbm >= -100) {
+      return "Fair";
     }
     if (dbm > -110) {
       return "Poor";
@@ -104,48 +61,52 @@ module.exports = class Parser {
     const list = result.split("\r\n");
     let messages = [];
     for (let i = 0; i < list.length; i += 2) {
-      const parts = list[i].replace("+CMGL: ", "").split(",");
+      try {
+        const parts = list[i].replace("+CMGL: ", "").split(",");
 
-      const index = parseInt(parts[0]);
-      const status = parts[1].trimQuotes();
-      const sender = parts[2].trimQuotes().decodedUCS2Hex();
-      const date = parts[4].trimQuotes().replace(/\//g, "-");
-      const time = parts[5].trimQuotes();
-      const numberType = parseInt(parts[6]);
-      const textLength = parseInt(parts[7]);
-      const messageText = list[i + 1];
+        const index = parseInt(parts[0]);
+        const status = parts[1].trimQuotes();
+        const sender = parts[2].trimQuotes().decodedUCS2Hex();
+        const date = parts[4].trimQuotes().replace(/\//g, "-");
+        const time = parts[5].trimQuotes();
+        const numberType = parseInt(parts[6]);
+        const textLength = parseInt(parts[7]);
+        const messageText = list[i + 1];
 
-      // Message Text decode. Can be either UTF-8 or UCS2. We check this by the char byte size
-      const textBuffer = Buffer.from(messageText, "hex");
-      const textCharSize = textBuffer.length / textLength;
-      const decodedText =
-        textCharSize == 2
-          ? messageText.decodedUCS2Hex()
-          : textBuffer.toString("utf-8");
+        // Message Text decode. Can be either UTF-8 or UCS2. We check this by the char byte size
+        const textBuffer = Buffer.from(messageText, "hex");
+        const textCharSize = textBuffer.length / textLength;
+        const decodedText =
+          textCharSize == 2
+            ? messageText.decodedUCS2Hex()
+            : textBuffer.toString("utf-8");
 
-      //Time calculate
-      const timeParts = time.split("+");
-      const timezone = (parseFloat(timeParts[1]) / 4.0) * 100;
-      const timezonePrefix = timezone > 0 ? "+" : "-";
-      const timezoneString =
-        timezonePrefix + Math.abs(timezone).toString().padStart(4, "0");
-      const timeStamp = `20${date}T${timeParts[0]}${timezoneString}`;
-      const senderString = [
-        PhoneNumberType.text,
-        PhoneNumberType.text2,
-      ].includes(numberType)
-        ? sender.decodedFromAsciiString()
-        : sender;
-      messages.push({
-        index: index,
-        status: status,
-        sender: senderString,
-        time: new Date(timeStamp),
-        text: decodedText,
-        numberType: numberType,
-        rawHeader: list[i],
-        rawMessage: messageText,
-      });
+        //Time calculate
+        const timeParts = time.split("+");
+        const timezone = (parseFloat(timeParts[1]) / 4.0) * 100;
+        const timezonePrefix = timezone > 0 ? "+" : "-";
+        const timezoneString =
+          timezonePrefix + Math.abs(timezone).toString().padStart(4, "0");
+        const timeStamp = `20${date}T${timeParts[0]}${timezoneString}`;
+        const senderString = [
+          PhoneNumberType.text,
+          PhoneNumberType.text2,
+        ].includes(numberType)
+          ? sender.decodedFromAsciiString()
+          : sender;
+        messages.push({
+          index: index,
+          status: status,
+          sender: senderString,
+          time: new Date(timeStamp),
+          text: decodedText,
+          numberType: numberType,
+          rawHeader: list[i],
+          rawMessage: messageText,
+        });
+      } catch {
+        return result, error;
+      }
     }
     return messages;
   }
@@ -173,74 +134,41 @@ Object.assign(String.prototype, {
    * @returns {String}
    */
   trimQuotes() {
-    return this.replace(/^"?(.*?)"?$/, "$1");
-  },
-
-    /**
-     * @returns {String} 
-     */
-  trimQuotes() {
     // Check if the input string is undefined
-    if (typeof this === 'undefined') {
-        return '';
+    if (typeof this === "undefined") {
+      return "";
     }
 
     // Otherwise, perform the trimQuotes operation
-    return this.replace(/^"?(.*?)"?$/,"$1");
-},
+    return this.replace(/^"?(.*?)"?$/, "$1");
+  },
 
+  /**
+   * @returns {String}
+   */
+  decodedUCS2Hex() {
+    return Buffer.from(this, "hex").swap16().toString("ucs2");
+  },
 
-    /**
-     * @returns {String} 
-     */
-    decodedUCS2Hex() {
-        return Buffer.from(this,"hex").swap16().toString("ucs2")
-    },
-
-    /**
-     * @returns {String} 
-     */
-    UCS2HexString(text) {
-        // Convert the text to a UCS-2 encoded buffer and then to a hex string.
-        let hexStr = Buffer.from(text, "ucs2").toString("hex").toUpperCase();
-        // Apply manual byte swapping to the hex string.
-        return manualSwap16(hexStr);
-    },
-/**
- * Swaps bytes of a UCS-2 hex string.
- * @param {String} hexStr The hex string to swap.
- * @returns {String} The swapped hex string.
- */
- manualSwap16(hexStr) {
+  /**
+   * @returns {String}
+   */
+  UCS2HexString(text) {
+    // Convert the text to a UCS-2 encoded buffer and then to a hex string.
+    let hexStr = Buffer.from(text, "ucs2").toString("hex").toUpperCase();
+    // Apply manual byte swapping to the hex string.
+    return manualSwap16(hexStr);
+  },
+  /**
+   * Swaps bytes of a UCS-2 hex string.
+   * @param {String} hexStr The hex string to swap.
+   * @returns {String} The swapped hex string.
+   */
+  manualSwap16(hexStr) {
     let swapped = "";
     for (let i = 0; i < hexStr.length; i += 4) {
-        // Swap every two bytes (4 hex characters)
-        swapped += hexStr.substring(i+2, i+4) + hexStr.substring(i, i+2);
-    }
-    return swapped.toUpperCase();
-},
-
-
-    /**
-     * @returns {String} 
-     */
-    decodedFromAsciiString() {
-        let output = ""
-        let i = 0
-        while(i < this.length ) {
-            if (this[i] < 2 && i+2 < this.length) {
-                output += String.fromCharCode(parseInt(this[i]+this[i+1]+this[i+2]))
-                i+=3
-            }
-            else if (i+1 < this.length) {
-                output += String.fromCharCode(parseInt(this[i]+this[i+1]))
-                i+=2
-            }
-            else {
-                i+=1
-            }
-        }
-        return output
+      // Swap every two bytes (4 hex characters)
+      swapped += hexStr.substring(i + 2, i + 4) + hexStr.substring(i, i + 2);
     }
     return swapped.toUpperCase();
   },
