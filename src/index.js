@@ -2,9 +2,9 @@ const SerialPort = require('serialport')
 const GSMErrors = require('./errors')
 const Parser = require('./parsing')
 const Constants = require('./constants')
-
+const smsPdu = require('node-sms-pdu');
 const GSM_PROMPT = ">"
-const TIMEOUT_DEFAULT = 5000
+const TIMEOUT_DEFAULT = 20000
 const TIMEOUT_LONG = 20000
 const CTRL_Z = "\x1A"
 
@@ -17,7 +17,7 @@ class GSM {
     constructor(path) {
         this.path = path
         this.connected = false
-        this.serialPort = new SerialPort(path, { baudRate: 460800, autoOpen: false })
+        this.serialPort = new SerialPort(path, { baudRate: 115200, autoOpen: false })
         this.parser = new Parser()
     }
 
@@ -331,16 +331,25 @@ class GSM {
      * @param {GSM.MessageFilter} filter - A filter to select messages by status
      */
     async readSMS(storage, filter) {
-        await this.setMessageFormat(GSM.MessageFormat.text)
-        await this.setPreferredMessageStorage(storage)
-        await this.setCharacterSet(GSM.CharacterSet.UCS2)
-        await this.runCommand("AT+CSDH=1")
-        const result = await this.runCommand(`AT+CMGL="${filter.text}"`)
+        await this.setMessageFormat(GSM.MessageFormat.text);
+        await this.setPreferredMessageStorage(storage);
+        await this.setCharacterSet(GSM.CharacterSet.UCS2);
+        await this.runCommand("AT+CSDH=1");
+        const result = await this.runCommand(`AT+CMGL="${filter.text}"`);
         if(result.length == 0) {
-            return []
+            return [];
         }
-        return this.parser.parseTextMessageResult(result)
+    
+        try {
+            // Attempt to parse the result with the parser
+            return this.parser.parseTextMessageResult(result);
+        } catch (error) {
+            // If parsing fails, log the error and return the raw result
+            console.error("Error parsing text message result:", error);
+            return result; // Or return an object indicating an error, depending on your needs
+        }
     }
+    
 
     /**
      * Sends a SMS message to the destination number
@@ -348,13 +357,48 @@ class GSM {
      * @param {String} message - Text message to 
      * @returns {String} - Reference ID if the delivery was successful
      */
-    async sendSMS(msisdn, message) {
-        await this.setCharacterSet(GSM.CharacterSet.UCS2)
-        await this.setMessageFormat(GSM.MessageFormat.text)
-        await this.runCommand(`AT+CMGS="${msisdn.UCS2HexString()}"`) // returns a prompt > for a message
-        const result = await this.runCommand(`${message.UCS2HexString()}${CTRL_Z}`)
-        return result.replace("+CMGS: ","")
+    async  sendSMS(msisdn, message) {
+        message = " " + message;
+
+        
+        // Determine if message uses characters outside the GSM 7-bit default alphabet
+        const useUCS2 = !isGSMCharacterSet(message);
+    
+        // Set character set based on message content
+        const characterSet = useUCS2 ? GSM.CharacterSet.UCS2 : GSM.CharacterSet.GSM;
+        await this.setCharacterSet(characterSet);
+    
+        await this.setMessageFormat(GSM.MessageFormat.PDU);
+        const newRefNumber = generateRandomReferenceNumber();
+        // Generate PDUs for the message. Assume generateSubmit handles segmentation if needed.
+        const encoding = useUCS2 ? 'ucs2' : 'gsm';
+        const pdus = smsPdu.generateSubmit(msisdn, message, { encoding });
+    // return pdus
+        // Send each PDU segment sequentially
+        const results = [];
+        for (const pdu of pdus) {
+            // Send length of the PDU in bytes, not the message length
+            let modifiedPduHex = pdu.hex;
+            let length = pdu.length
+            if (pdus.length > 1){
+             modifiedPduHex = pdu.hex.substring(0, 30) + newRefNumber + pdu.hex.substring(32);
+            }
+            await this.runCommand(`AT+CMGS=${length}`);
+            // Send the PDU and store the result
+            const result = await this.runCommand(`${modifiedPduHex}${CTRL_Z}`);
+            if (result.startsWith('+CMGS:')) {
+                console.log('Segment sent successfully:', result);
+            } else {
+                console.error('Error sending segment:', result);
+                break; // Consider handling this situation more gracefully
+            }
+            await new Promise(resolve => setTimeout(resolve, 1500)); // Wait 2 seconds before sending the next part
+            results.push(result);
+        }
+    
+        return (results, pdus);
     }
+    
 
     /**
      * Deletes a message from storage
@@ -430,7 +474,44 @@ class GSM {
         return `[${this.connected ? "Connected" : "Not Connected"}] ${this.path} `
     }
 }
+function manualSwap16(hexStr) {
+    let swapped = "";
+    for (let i = 0; i < hexStr.length; i += 4) {
+        // Swap every two bytes (4 hex characters)
+        swapped += hexStr.substring(i+2, i+4) + hexStr.substring(i, i+2);
+    }
+    return swapped.toUpperCase();
+}
 
+function UCS2HexString(text) {
+    let hexStr = "";
+    for (let i = 0; i < text.length; i++) {
+        const charCode = text.charCodeAt(i);
+        // Check if the character is ASCII by its code
+        if (charCode >= 0 && charCode <= 127) {
+            // Convert ASCII character to a UCS-2 encoded buffer and then to a hex string
+            let charHex = Buffer.from(text.charAt(i), "ucs2").toString("hex").toUpperCase();
+            hexStr += manualSwap16(charHex); // Apply manual byte swapping if necessary
+        } else {
+            // Replace non-ASCII characters with underscore
+            let underscoreHex = Buffer.from("_", "ucs2").toString("hex").toUpperCase();
+            hexStr += manualSwap16(underscoreHex); // Apply manual byte swapping if necessary
+        }
+    }
+    return hexStr;
+}
+
+function isGSMCharacterSet(message) {
+    const gsm0338CharacterSet = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1BÆæßÉ !"#¤%&'()*+,-.\/0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\[~\]|€]*$/;
+    return gsm0338CharacterSet.test(message);
+}
+function delay(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+function generateRandomReferenceNumber() {
+    const randomNum = Math.floor(Math.random() * 256); // Generate a random number between 0 and 255
+    return randomNum.toString(16).padStart(2, '0').toUpperCase(); // Convert to hexadecimal, ensure 2 characters, uppercase
+}
 Object.assign(GSM, GSMErrors)
 Object.assign(GSM, Constants)
 module.exports = GSM

@@ -61,6 +61,7 @@ module.exports = class Parser {
         const list = result.split("\r\n")
         let messages = []
         for (let i = 0; i < list.length; i += 2) {
+            try{
             const parts = list[i].replace("+CMGL: ","").split(",")
             
             const index = parseInt(parts[0])
@@ -94,6 +95,7 @@ module.exports = class Parser {
                 rawHeader: list[i],
                 rawMessage: messageText,
             })
+        }catch{return (result,error)}
         }
         return messages
     }
@@ -122,9 +124,16 @@ Object.assign(String.prototype, {
     /**
      * @returns {String} 
      */
-    trimQuotes() {
-        return this.replace(/^"?(.*?)"?$/,"$1")
-    },
+  trimQuotes() {
+    // Check if the input string is undefined
+    if (typeof this === 'undefined') {
+        return '';
+    }
+
+    // Otherwise, perform the trimQuotes operation
+    return this.replace(/^"?(.*?)"?$/,"$1");
+},
+
 
     /**
      * @returns {String} 
@@ -136,9 +145,26 @@ Object.assign(String.prototype, {
     /**
      * @returns {String} 
      */
-    UCS2HexString() {
-        return Buffer.from(this,"ucs2").swap16().toString("hex").toUpperCase()
+    UCS2HexString(text) {
+        // Convert the text to a UCS-2 encoded buffer and then to a hex string.
+        let hexStr = Buffer.from(text, "ucs2").toString("hex").toUpperCase();
+        // Apply manual byte swapping to the hex string.
+        return manualSwap16(hexStr);
     },
+/**
+ * Swaps bytes of a UCS-2 hex string.
+ * @param {String} hexStr The hex string to swap.
+ * @returns {String} The swapped hex string.
+ */
+ manualSwap16(hexStr) {
+    let swapped = "";
+    for (let i = 0; i < hexStr.length; i += 4) {
+        // Swap every two bytes (4 hex characters)
+        swapped += hexStr.substring(i+2, i+4) + hexStr.substring(i, i+2);
+    }
+    return swapped.toUpperCase();
+},
+
 
     /**
      * @returns {String} 

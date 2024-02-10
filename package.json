@@ -20,6 +20,7 @@
   },
   "homepage": "https://github.com/stasel/NodeGSM",
   "dependencies": {
+    "node-sms-pdu": "^0.3.0",
     "serialport": "^9.0.4"
   }
 }
