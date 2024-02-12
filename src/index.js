@@ -371,7 +371,15 @@ class GSM {
    */
   async sendSMS(msisdn, message) {
     message = " " + message;
-
+    let modifiedMessage = '';
+    for (let char of message) {
+      if (isGSMCharacterSet(char)) {
+        modifiedMessage += char;
+      } else {
+        modifiedMessage += '_'; // Replace non-GSM character with an underscore
+      }
+    }
+    message = modifiedMessage
     // Determine if message uses characters outside the GSM 7-bit default alphabet
     const useUCS2 = !isGSMCharacterSet(message);
 
