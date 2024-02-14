@@ -346,13 +346,14 @@ class GSM {
   async readSMS(storage, filter) {
     await this.setMessageFormat(GSM.MessageFormat.text);
     await this.setPreferredMessageStorage(storage);
-    await this.setCharacterSet(GSM.CharacterSet.GSM);
+    await this.setCharacterSet(GSM.CharacterSet.UCS2);
     await this.runCommand("AT+CSDH=1");
+    
     const result = await this.runCommand(`AT+CMGL="${filter.text}"`);
     if (result.length == 0) {
       return [];
     }
-
+    
     try {
       // Attempt to parse the result with the parser
       return this.parser.parseTextMessageResult(result);

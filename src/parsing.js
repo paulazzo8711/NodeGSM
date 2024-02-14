@@ -74,12 +74,9 @@ module.exports = class Parser {
         const messageText = list[i + 1];
 
         // Message Text decode. Can be either UTF-8 or UCS2. We check this by the char byte size
-        const textBuffer = Buffer.from(messageText, "hex");
-        const textCharSize = textBuffer.length / textLength;
-        const decodedText =
-          textCharSize == 2
-            ? messageText.decodedUCS2Hex()
-            : textBuffer.toString("utf-8");
+    // Since the character set is set to UCS2, decode message text as UCS2 hex directly
+const decodedText = messageText.decodedUCS2Hex();
+
 
         //Time calculate
         const timeParts = time.split("+");
@@ -104,7 +101,7 @@ module.exports = class Parser {
           rawHeader: list[i],
           rawMessage: messageText,
         });
-      } catch {
+      } catch(error) {
         return result, error;
       }
     }
@@ -135,12 +132,14 @@ Object.assign(String.prototype, {
    */
   trimQuotes() {
     // Check if the input string is undefined
-    if (typeof this === "undefined") {
+    try {
+      return this.replace(/^"?(.*?)"?$/, "$1");
+    } catch (error) {
       return "";
     }
 
     // Otherwise, perform the trimQuotes operation
-    return this.replace(/^"?(.*?)"?$/, "$1");
+    
   },
 
   /**
