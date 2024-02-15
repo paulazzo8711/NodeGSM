@@ -371,28 +371,33 @@ class GSM {
    * @returns {String} - Reference ID if the delivery was successful
    */
   async sendSMS(msisdn, message) {
-    message = " " + message;
-    let modifiedMessage = '';
-    for (let char of message) {
-      if (isGSMCharacterSet(char)) {
-        modifiedMessage += char;
-      } else {
-        modifiedMessage += '_'; // Replace non-GSM character with an underscore
-      }
-    }
-    message = modifiedMessage
+    message = "" + message;
+    // let modifiedMessage = '';
+    // for (let char of message) {
+    //   if (isGSMCharacterSet(char)) {
+    //     modifiedMessage += char;
+    //   } else {
+    //     modifiedMessage += '_'; // Replace non-GSM character with an underscore
+    //   }
+    // }
+    // message = modifiedMessage
     // Determine if message uses characters outside the GSM 7-bit default alphabet
-    const useUCS2 = !isGSMCharacterSet(message);
+    // const useUCS2 = !isGSMCharacterSet(message);
 
     // Set character set based on message content
-    const characterSet = useUCS2 ? GSM.CharacterSet.UCS2 : GSM.CharacterSet.GSM;
-    await this.setCharacterSet(characterSet);
+    // const characterSet = useUCS2 ? GSM.CharacterSet.UCS2 : GSM.CharacterSet.GSM;
+    
 
     await this.setMessageFormat(GSM.MessageFormat.PDU);
     const newRefNumber = generateRandomReferenceNumber();
     // Generate PDUs for the message. Assume generateSubmit handles segmentation if needed.
-    const encoding = useUCS2 ? "ucs2" : "gsm";
-    const pdus = smsPdu.generateSubmit(msisdn, message, { encoding });
+    // const encoding = useUCS2 ? "ucs2" : "gsm";
+    // return(message)
+    const pdus = smsPdu.generateSubmit(msisdn, message);
+    const encoding =  pdus[0].encoding;
+    const characterSet = encoding === 'ucs2' ? GSM.CharacterSet.UCS2 : GSM.CharacterSet.GSM;
+    await this.setCharacterSet(characterSet);
+    // return characterSet
     // return pdus
     // Send each PDU segment sequentially
     const results = [];
@@ -534,7 +539,7 @@ function UCS2HexString(text) {
 
 function isGSMCharacterSet(message) {
   const gsm0338CharacterSet =
-    /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1BÆæßÉ !"#¤%&'()*+,-.\/0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\[~\]|€]*$/;
+    /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞ\x1BÆæßÉ !"#¤%&()*+,-.\/0123456789:;<=>?¡ABCDEFGHIJKLMNOPQRSTUVWXYZÄÖÑÜ§¿abcdefghijklmnopqrstuvwxyzäöñüà^{}\[~\]|€]*$/;
   return gsm0338CharacterSet.test(message);
 }
 function delay(ms) {
