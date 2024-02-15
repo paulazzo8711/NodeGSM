@@ -371,16 +371,8 @@ class GSM {
    * @returns {String} - Reference ID if the delivery was successful
    */
   async sendSMS(msisdn, message) {
-    message = "" + message;
-    // let modifiedMessage = '';
-    // for (let char of message) {
-    //   if (isGSMCharacterSet(char)) {
-    //     modifiedMessage += char;
-    //   } else {
-    //     modifiedMessage += '_'; // Replace non-GSM character with an underscore
-    //   }
-    // }
-    // message = modifiedMessage
+    message = " " + message;
+
     // Determine if message uses characters outside the GSM 7-bit default alphabet
     // const useUCS2 = !isGSMCharacterSet(message);
 
@@ -395,12 +387,29 @@ class GSM {
     // return(message)
     const pdus = smsPdu.generateSubmit(msisdn, message);
     const encoding =  pdus[0].encoding;
+
+    if(encoding === "ucs2" && pdus.length > 1){
+      console.log("ucs multipart");
+    let modifiedMessage = '';
+    for (let char of message) {
+      if (isGSMCharacterSet(char)) {
+        modifiedMessage += char;
+      } else {
+        modifiedMessage += '_'; // Replace non-GSM character with an underscore
+      }
+    }
+    message = modifiedMessage
+    const pdus = smsPdu.generateSubmit(msisdn, message);
+    const encoding =  pdus[0].encoding;
+    }
+    console.log(pdus);
     const characterSet = encoding === 'ucs2' ? GSM.CharacterSet.UCS2 : GSM.CharacterSet.GSM;
     await this.setCharacterSet(characterSet);
     // return characterSet
     // return pdus
     // Send each PDU segment sequentially
     const results = [];
+    
     for (const pdu of pdus) {
       // Send length of the PDU in bytes, not the message length
       let modifiedPduHex = pdu.hex;
