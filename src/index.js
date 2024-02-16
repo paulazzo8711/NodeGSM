@@ -402,7 +402,7 @@ class GSM {
     const pdus = smsPdu.generateSubmit(msisdn, message);
     const encoding =  pdus[0].encoding;
     }
-    console.log(pdus);
+    // console.log(pdus);
     const characterSet = encoding === 'ucs2' ? GSM.CharacterSet.UCS2 : GSM.CharacterSet.GSM;
     await this.setCharacterSet(characterSet);
     // return characterSet
