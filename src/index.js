@@ -431,7 +431,7 @@ class GSM {
       results.push(result);
     }
 
-    return results, pdus;
+    return results;
   }
 
   /**
