@@ -425,7 +425,10 @@ class GSM {
         console.log("Segment sent successfully:", result);
       } else {
         console.error("Error sending segment:", result);
-        break; // Consider handling this situation more gracefully
+      // Consider handling this situation more gracefully
+        // reject(result)
+        return(result)
+        break; 
       }
       await new Promise((resolve) => setTimeout(resolve, 1500)); // Wait 2 seconds before sending the next part
       results.push(result);
