@@ -4,7 +4,7 @@ const Parser = require("./parsing");
 const Constants = require("./constants");
 const smsPdu = require("node-sms-pdu");
 const GSM_PROMPT = ">";
-const TIMEOUT_DEFAULT = 20000;
+const TIMEOUT_DEFAULT = 30000;
 const TIMEOUT_LONG = 20000;
 const CTRL_Z = "\x1A";
 
@@ -371,7 +371,7 @@ class GSM {
    * @returns {String} - Reference ID if the delivery was successful
    */
   async sendSMS(msisdn, message) {
-    message = " " + message;
+   message = " " + message;
 
     // Determine if message uses characters outside the GSM 7-bit default alphabet
     // const useUCS2 = !isGSMCharacterSet(message);
@@ -399,7 +399,30 @@ class GSM {
       }
     }
     message = modifiedMessage
-    const pdus = smsPdu.generateSubmit(msisdn, message);
+    let pdus; // Define `pdus` outside the try-catch to ensure its scope is accessible after the block
+
+    try {
+      // First attempt to generate PDU
+      pdus = smsPdu.generateSubmit(msisdn, message);
+    } catch (error) {
+      // If an error occurs, log it or handle it as needed
+      console.error("Error generating PDU:", error);
+    
+      // Modify the message by prefixing a space
+      const modifiedMessage = " " + message;
+    
+      // Retry generating PDU with the modified message
+      try {
+        pdus = smsPdu.generateSubmit(msisdn, modifiedMessage);
+      } catch (retryError) {
+        // Handle the case where the retry also fails
+        console.error("Retry failed:", retryError);
+        // Depending on your application, you might throw the error, return, or handle it differently
+        throw retryError; // Or another way of handling the error
+      }
+    }
+    
+    // Continue with the logic, assuming `pdus` has been successfully generated
     const encoding =  pdus[0].encoding;
     }
     // console.log(pdus);
