@@ -385,22 +385,7 @@ class GSM {
     // Generate PDUs for the message. Assume generateSubmit handles segmentation if needed.
     // const encoding = useUCS2 ? "ucs2" : "gsm";
     // return(message)
-    const pdus = smsPdu.generateSubmit(msisdn, message);
-    const encoding =  pdus[0].encoding;
-
-    if(encoding === "ucs2" && pdus.length > 1){
-      console.log("ucs multipart");
-    let modifiedMessage = '';
-    for (let char of message) {
-      if (isGSMCharacterSet(char)) {
-        modifiedMessage += char;
-      } else {
-        modifiedMessage += '_'; // Replace non-GSM character with an underscore
-      }
-    }
-    message = modifiedMessage
-    let pdus; // Define `pdus` outside the try-catch to ensure its scope is accessible after the block
-
+let pdus ;
     try {
       // First attempt to generate PDU
       pdus = smsPdu.generateSubmit(msisdn, message);
@@ -420,7 +405,20 @@ class GSM {
         // Depending on your application, you might throw the error, return, or handle it differently
         throw retryError; // Or another way of handling the error
       }
+    }    const encoding =  pdus[0].encoding;
+
+    if(encoding === "ucs2" && pdus.length > 1){
+      console.log("ucs multipart");
+    let modifiedMessage = '';
+    for (let char of message) {
+      if (isGSMCharacterSet(char)) {
+        modifiedMessage += char;
+      } else {
+        modifiedMessage += '_'; // Replace non-GSM character with an underscore
+      }
     }
+    message = modifiedMessage
+   
     
     // Continue with the logic, assuming `pdus` has been successfully generated
     const encoding =  pdus[0].encoding;
