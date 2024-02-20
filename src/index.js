@@ -391,7 +391,7 @@ let pdus ;
       pdus = smsPdu.generateSubmit(msisdn, message);
     } catch (error) {
       // If an error occurs, log it or handle it as needed
-      console.error("Error generating PDU:", error);
+      console.error("Error generating PDU:");
     
       // Modify the message by prefixing a space
       const modifiedMessage = " " + message;
@@ -444,6 +444,7 @@ let pdus ;
       const result = await this.runCommand(`${modifiedPduHex}${CTRL_Z}`);
       if (result.startsWith("+CMGS:")) {
         console.log("Segment sent successfully:", result);
+        throw new Error(`Error sending segment: ${result}`);
       } else {
         console.error("Error sending segment:", result);
       // Consider handling this situation more gracefully
