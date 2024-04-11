@@ -4,7 +4,7 @@ const Parser = require("./parsing");
 const Constants = require("./constants");
 const smsPdu = require("node-sms-pdu");
 const GSM_PROMPT = ">";
-const TIMEOUT_DEFAULT = 30000;
+const TIMEOUT_DEFAULT = 5000;
 const TIMEOUT_LONG = 20000;
 const CTRL_Z = "\x1A";
 
