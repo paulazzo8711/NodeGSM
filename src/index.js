@@ -371,7 +371,7 @@ class GSM {
    * @returns {String} - Reference ID if the delivery was successful
    */
   async sendSMS(msisdn, message) {
-  //  message = " " + message;
+   message = " " + message;
 
     // Determine if message uses characters outside the GSM 7-bit default alphabet
     // const useUCS2 = !isGSMCharacterSet(message);
