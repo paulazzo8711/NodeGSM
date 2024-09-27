@@ -348,8 +348,11 @@ class GSM {
     await this.setPreferredMessageStorage(storage);
     await this.setCharacterSet(GSM.CharacterSet.UCS2);
     await this.runCommand("AT+CSDH=1");
-    
+      // console.log(storage,filter);
+      
     const result = await this.runCommand(`AT+CMGL="${filter.text}"`);
+    // console.log(result);
+    
     if (result.length == 0) {
       return [];
     }
